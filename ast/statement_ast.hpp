@@ -15,9 +15,19 @@
 
 namespace yang_cpp { namespace ast {
 
-  struct import_stmt_t {
+  struct import_stmt_t 
+  {
     std::string module_name;
-    boost::optional<std::string> prefix;
+    std::string prefix;
+    boost::optional<std::string> revision_date;
+  };
+
+  struct revision_stmt_t 
+  {
+    std::string year;
+    std::string month;
+    std::string day;
+    std::string description;
   };
 
 }}
