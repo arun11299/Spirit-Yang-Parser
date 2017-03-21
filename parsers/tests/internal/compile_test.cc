@@ -1,4 +1,4 @@
-#include "stmt_grammars.hpp"
+#include "../../stmt_grammars.hpp"
 #include <iostream>
 
 
@@ -7,6 +7,7 @@ int main() {
   using yang_cpp::grammar::import_stmt;
   using yang_cpp::grammar::nspace_stmt;
   using yang_cpp::grammar::revision_stmt;
+  using yang_cpp::grammar::multiline_string;
 
   std::string input = "import \"test\" {"
     "prefix \"test\";"
@@ -48,6 +49,13 @@ int main() {
 
   std::cout << "Revision: " << rev_s.year << "-" << rev_s.month << "-" << rev_s.day << std::endl;
   std::cout << "Descirption: " << rev_s.description << std::endl;
+
+  input = "\"a\b\tbcd\n\t\tefg\"";
+  sitr = input.begin();
+  std::string mstr;
+  res = phrase_parse(sitr, input.end(), multiline_string, space, mstr);
+
+  std::cout << "Multiline string = " << mstr << std::endl;
 
   return 0;
 }
