@@ -5,7 +5,7 @@
  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 =============================================================================*/
 
-#ifndef  STMT_GRAMMARS_HPP
+#ifndef STMT_GRAMMARS_HPP
 #define STMT_GRAMMARS_HPP
 
 #include <string>
@@ -27,6 +27,9 @@ namespace yang_cpp { namespace grammar {
   using x3::lit;
   using x3::ascii::digit;
 
+  // Yang staement terminator
+  auto eo_stmt = lit(';');
+
   /* Rules for parsing comments */
   x3::rule<class scomment> single_line_comment = "single-comment";
   x3::rule<class mcomment> multi_line_comment  = "multi-line-comment";
@@ -35,9 +38,6 @@ namespace yang_cpp { namespace grammar {
   x3::rule<class qstring, std::string> quoted_string    = "quoted-string";
   x3::rule<class ustring, std::string> unquoted_string  = "unquoted-string";
   x3::rule<class mstring, std::string> multiline_string = "multiline-string"; 
-
-  // Yang staement terminator
-  auto eo_stmt = lit(';');
 
   /* Rules for parsing top level (header) yang statements */
   x3::rule<class nspace,            std::string> nspace_stmt    = "namespace-stmt";
@@ -50,6 +50,8 @@ namespace yang_cpp { namespace grammar {
   x3::rule<class description,       std::string> desc_stmt      = "description-stmt";
   x3::rule<class error_msg,         std::string> error_msg_stmt = "error-message-stmt";
   x3::rule<class err_app_tag,       std::string> error_app_tag_stmt  = "error-app-tag-stmt";
+  x3::rule<class config,            std::string> config_stmt    = "config-stmt";
+  x3::rule<class reference,         std::string> reference_stmt = "reference-stmt";
 
   /// Pattern statement and its substatements
 
@@ -72,8 +74,9 @@ namespace yang_cpp { namespace grammar {
   /*!
    * Parses a double quoted string without the quotes.
    * Spaces are also included.
+   * The string can begin on a new line also.
    */
-  auto quoted_string_def = lexeme['"' >> *(char_ - '"') >> '"'];
+  auto quoted_string_def = lexeme[-x3::eol >> '"' >> *(char_ - '"') >> '"'];
 
   /*!
    * Parses an unquoted string.
@@ -86,8 +89,10 @@ namespace yang_cpp { namespace grammar {
    * Useful for parsing big strings like description etc.
    * TODO: Tabs/spaces in the beginning of a new line
    * are not ignored.
+   * The string can start from a new line
    */
-  auto multiline_string_def = lexeme['"' >> *((char_ - '"') | x3::eol) >> '"'];
+  auto multiline_string_def = 
+      lexeme[-x3::eol >> '"' >> *((char_ - '"') | x3::eol) >> '"'];
 
   /*!
    * Section [7.19.3]
@@ -178,6 +183,23 @@ namespace yang_cpp { namespace grammar {
       ( lit("error-app-tag") >> quoted_string ) > eo_stmt;
 
   /*!
+   * Section [7.19.1]
+   * Parses the config statement.
+   * The argument is stored in a string.
+   * TODO: Validation of the argument not done.
+   */
+  auto config_stmt_def =
+      ( lit("config") >> (x3::string("true") | x3::string("false"))) > eo_stmt;
+
+  /*!
+   * Section [7.19.4]
+   * Parses the reference statement.
+   * The parsed argument is stored as a string.
+   */
+  auto reference_stmt_def =
+      ( lit("reference") >> multiline_string ) > eo_stmt;
+
+  /*!
    * Section [7.1.5]
    * Parses the import statement. The argument is the
    * name of the module to import.
@@ -204,7 +226,9 @@ namespace yang_cpp { namespace grammar {
                        import_stmt,
                        desc_stmt,
                        error_msg_stmt,
-                       error_app_tag_stmt);
+                       error_app_tag_stmt,
+                       config_stmt,
+                       reference_stmt);
 
 }}
 
