@@ -79,8 +79,183 @@ namespace yang_cpp { namespace xpath { namespace ast {
   };
 
 
-  using rel_loc_path_t = std::vector<step_t>;
+  using loc_path_t = std::vector<step_t>;
 
+
+
+  /*
+   * Predicate Expressions
+   */
+
+
+  struct expression;
+  struct function_call;
+  struct filter_expr_impl;
+  struct union_expr_impl;
+  struct unary_expr_impl;
+  struct mult_expr_impl;
+  struct add_expr_impl;
+  struct rel_expr_impl;
+  struct eq_expr_impl;
+  struct and_expr_impl;
+  struct or_expr_impl;
+  struct path_expression;
+
+  struct primary_expression: x3::variant<
+                              std::string,
+                              x3::forward_ast<expression>,
+                              std::string,
+                              int32_t,
+                              uint32_t,
+                              double,
+                              x3::forward_ast<function_call>
+                             >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct union_expression: x3::variant<
+                            x3::forward_ast<path_expression>,
+                            x3::forward_ast<union_expr_impl>
+                           >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct unary_expression: x3::variant<
+                            union_expression,
+                            x3::forward_ast<unary_expr_impl>
+                           >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct unary_expr_impl
+  {
+    unary_expression expr_;
+  };
+
+  struct multiplicative_expression: x3::variant<
+                                      unary_expression,
+                                      x3::forward_ast<mult_expr_impl>
+                                    >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct mult_expr_impl
+  {
+    std::pair<multiplicative_expression, unary_expression> expr_;
+  };
+
+  struct additive_expression: x3::variant<
+                                multiplicative_expression,
+                                x3::forward_ast<add_expr_impl>
+                              >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct add_expr_impl
+  {
+    std::pair<additive_expression, multiplicative_expression> expr_;
+  };
+
+  struct relational_expression: x3::variant<
+                                  additive_expression,
+                                  x3::forward_ast<rel_expr_impl>
+                                >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct rel_expr_impl
+  {
+    std::pair<relational_expression, additive_expression> expr_;
+  };
+
+  struct equality_expression: x3::variant<
+                                relational_expression,
+                                x3::forward_ast<eq_expr_impl>
+                              >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct eq_expr_impl
+  {
+    std::pair<equality_expression, relational_expression> expr_;
+  };
+
+  struct and_expression: x3::variant<
+                          equality_expression,
+                          x3::forward_ast<and_expr_impl>
+                         >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct and_expr_impl
+  {
+    std::pair<and_expression, equality_expression> expr_;
+  };
+
+  struct or_expression: x3::variant<
+                          and_expression,
+                          x3::forward_ast<or_expr_impl> 
+                        >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct or_expr_impl
+  {
+    std::pair<or_expression, and_expression> expr_;
+  };
+
+  struct filter_expression: x3::variant<
+                              primary_expression,
+                              x3::forward_ast<filter_expr_impl>
+                            >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct filter_expr_impl
+  {
+    std::pair<filter_expression, expression> expr_;
+  };
+
+  struct path_expression: x3::variant<
+                            loc_path_t,
+                            filter_expression,
+                            std::pair<filter_expression, loc_path_t>
+                          >
+  {
+    using base_type::base_type;
+    using base_type::operator=;
+  };
+
+  struct union_expr_impl
+  {
+    std::pair<union_expression, path_expression> expr_;
+  };
+
+  struct function_call
+  {
+    std::string function_name;
+    std::vector<expression> args;
+  };
 
 
 }}}

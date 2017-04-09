@@ -49,11 +49,22 @@ namespace yang_cpp { namespace xpath { namespace grammar {
   x3::rule<class qname_tok,  std::string> qname     = "qname-token";
   x3::rule<class ncname_tok, std::string> ncname    = "ncname-token";
 
+  /// Expression Grammar
+  x3::rule<class expr,     xpath::ast::expression> expr = "expression";
+  x3::rule<class or_expr,  xpath::ast::or_expression> or_expr = "or-expr";
+  x3::rule<class and_expr, xpath::ast::and_expression> and_expr = "and-expr";
+  x3::rule<class eq_expr,  xpath::ast::eq_expression> equality_expr = "equality-expr";
+  x3::rule<class rel_expr, xpath::ast::rel_expression> relational_expr = "rel-expr";
+  x3::rule<class add_expr, xpath::ast::add_expression> additive_expr = "add-expr";
+  x3::rule<class mult_expr, xpath::ast::mul_expression> multiplicative_expr = "mul-expr";
+  x3::rule<class unary_expr, xpath::ast::unary_expression> unary_expr = "unary-expr";
+  x3::rule<class union_expr, xpath::ast::union_expression> union_expr = "union-expr";
+  x3::rule<class filter_expr, xpath::ast::filter_expression> filter_expr = "filter-expr";
+
   /// Exposed parser rules
   x3::rule<class step_tok,           xpath::ast::step_t> step      = "step";
   x3::rule<class name_test_tok, xpath::ast::node_name_t> name_test = "name-test-token";
   x3::rule<class node_test_tok, xpath::ast::node_test_t> node_test = "node-test-token";
-  x3::rule<class relative_loc,  xpath::ast::rel_loc_path_t> relative_location = "relative-location";
 
 
   template<typename T>
@@ -82,6 +93,97 @@ namespace yang_cpp { namespace xpath { namespace grammar {
    *            | QName
    */
   auto name_test_def = qname;
+
+  /*!
+   */
+  auto union_expr_def = path_expr
+                      | (union_expr >> x3::lit('|') >> path_expr)
+                      ;
+
+  /*!
+   */
+  auto unary_expr_def = union_expr
+                      | (x3::lit('-') >> unary_expr)
+                      ;
+
+  /*!
+   */
+  auto multiplicative_expr_def = unary_expr
+                               | (multiplicative_expr >> x3::lit('*')   >> unary_expr)
+                               | (multiplicative_expr >> x3::lit("div") >> unary_expr)
+                               | (multiplicative_expr >> x3::lit("mod") >> unary_expr)
+                               ;
+
+  /*!
+   */
+  auto additive_expr_def = multiplicative_expr
+                         | (additive_expr >> x3::lit('+') >> multiplicative_expr)
+                         | (additive_expr >> x3::lit('-') >> multiplicative_expr)
+                         ;
+
+  /*!
+   */
+  auto relational_expr_def = additive_expr
+                           | (relational_expr >> x3::lit('<')  >> additive_expr)
+                           | (relational_expr >> x3::lit('>')  >> additive_expr)
+                           | (relational_expr >> x3::lit("<=") >> additive_expr)
+                           | (relational_expr >> x3::lit(">=") >> additive_expr)
+                           ;
+
+  /*!
+   */
+  auto equality_expr_def = relational_expr
+                         | (equality_expr >> x3::lit("=")  >> relational_expr)
+                         | (equality_expr >> x3::lit("!=") >> relational_expr) 
+                         ;
+
+  /*!
+   */
+  auto and_expr_def = equality_expr
+                    | (and_expr >> x3::lit("and") >> equality_expr)
+                    ;
+
+  /*!
+   */
+  auto or_expr_def = and_expr
+                   | (or_expr >> x3::lit("or") >> and_expr)
+                   ;
+
+  /*!
+   */
+  auto expr_def = or_expr;
+
+  /*!
+   */
+  auto function_name = qname - node_type;
+
+  /*!
+   */
+  auto function_arg  = expr;
+
+  /*!
+   */
+  auto function_call = 
+              function_name >> '(' >> -(function_arg % ',') >> ')';
+
+  /*!
+   */
+  auto primary_expr = ('$' >> qname)                  // A variable reference
+                    | ('(' >> expr >> ')')            // Expression
+                    | ('"' >> *(char_ - '"') >> '"')  // Literal
+                    | (int_ | uint_ | double_)        // Number
+                    | function_call                   // Function Call
+                    ;
+
+  /*!
+   */
+  auto predicate = '[' > expr > ']';
+
+  /*!
+   */
+  auto filter_expr_def = primary_expr
+                       | (filter_expr >> predicate)
+                       ;
 
   /*!
    * NodeTest ::= NameTest
@@ -118,18 +220,42 @@ namespace yang_cpp { namespace xpath { namespace grammar {
    *                        | RelativeLocationPath '/' Step
    *                        | AbbreviatedRelativeLocationPath
    *
-   * TODO: AbbreviatedRelativeLocationPath needs
-   * to be implemented.
+   * AST generated is ast::loc_path_t
    */
-  auto relative_location_def = step % '/';
+  auto relative_location = step % '/';
+
+
+  /*!
+   * Absolute location path is basically a sequence
+   * os steps but starts with '/'.
+   *
+   * AbsoluteLocationPath ::= '/' RelativeLocationPath ?
+   *                        | AbbreviatedAbsoluteLocationPath
+   *
+   * AST generated is ast::loc_path_t
+   */
+  auto absolute_location = '/' % step;
+
+  /*!
+   */
+
+  auto location_path = relative_location | absolute_location;
+
+
+  /*!
+   */
+  auto path_expr = location_path
+                 | filter_expr
+                 | (filter_expr >> '/' >> relative_location)
+                 | (filter_expr >> x3::lit("//") >> relative_location)
+                 ;
 
 
   BOOST_SPIRIT_DEFINE (ncname,
                        qname,
                        step,
                        name_test,
-                       node_test,
-                       relative_location)
+                       node_test)
 
 }}}
 
